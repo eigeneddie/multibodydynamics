@@ -1,2 +1,2 @@
 # multibodydynamics
-calculating kinematic calculation program
+calculating kinematic and dynamic calculation of multibody systems
