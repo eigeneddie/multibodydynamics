@@ -1,118 +1,91 @@
 # Custom Functions
 import numpy as np
+from numpy.core.fromnumeric import argmin
 import pandas as pd
 
 def ATransformMatrix (theta): #A
+    theta = float(theta)
     ATransform = np.array([[np.cos(theta), -np.sin(theta)], 
-                            [np.sin(theta), np.cos(theta)]])
+                            [np.sin(theta), np.cos(theta)]], dtype = float)
     return ATransform 
 
 def ATransformMatrixTHETA (theta): #A_theta
+    theta = float(theta)
     ATransformTHETA = np.array([[-np.sin(theta), -np.cos(theta)], 
-                                [np.cos(theta), -np.sin(theta)]])
+                                [np.cos(theta), -np.sin(theta)]], dtype = float)
     return ATransformTHETA
 
 def prettyMatVect(matVect):
     prettyMatVect = pd.DataFrame(matVect, columns =
                                 ['R1x', 'R1y', 'theta1',
                                 'R2x','R2y','theta2',
-                                'R3x','R3y','theta3',
-                                'R4x','R4y','theta4'])
+                                'R3x','R3y','theta3'])
     return prettyMatVect
 
-def calcGlobalCoor(qi, u_bar_iP, u_bar_jP, link_i, link_j):
+def local2global(qi, u_bar_iP, link_i):
     # To calculate Point of Interest positions in terms of global coordinates
-    index_for_i = 3*(link_i-1)
-    index_for_j = 3*(link_j-1)
+    index_for_i = link2index(link_i)
     Ri = np.array([qi[index_for_i], qi[index_for_i+1]], dtype = float) 
-    Rj = np.array([qi[index_for_j], qi[index_for_j+1]], dtype = float)
-
-    # Point P at link i
     riP = Ri + np.matmul(ATransformMatrix(float(qi[index_for_i+2])), u_bar_iP)
-    # Point P at link j
-    rjP = Rj + np.matmul(ATransformMatrix(float(qi[index_for_j+2])), u_bar_jP)
+    
+    return riP
 
-    return riP, rjP
-
-def constraintEquation(constraintVector, qi, r1O2, r2O2, r2A, r3A, 
-                    r3B, r4B, r1O4, r4O4, 
-                    theta2Initial, omega2, timeNow):
+def constraintEquation(qi, constraintVector, r2A, r2B, r3B): #, r3C, timeNow):
     # Ground constraint
     for i in range(3):
-        constraintVector[i] = 0 #qi[i] # just zero
+        constraintVector[i] = qi[i] # just zero
 
     # Pin joint O2
-    constraintPinO = r2O2# r1O -
+    constraintPinO = r2A # r1O -
     for i in range(np.size(constraintPinO)):
-    # Equation 4-5
+        # Equation 4-5
         constraintVector[i+3] = constraintPinO[i]
 
     # Pin joint A
-    constraintPinA = r2A - r3A
+    constraintPinA = revolutJoint(r2B, r3B)
     for i in range(np.size(constraintPinA)):
-    # Equation 6-7
+        # Equation 6-7
         constraintVector[i+5] = constraintPinA[i]
-
-    # Pin joint B
-    constraintPinB = r3B - r4B
-    for i in range(np.size(constraintPinB)):
-    # Equation 8-9
-        constraintVector[i+7] = constraintPinB[i]
-
-    # Pin joint O4
-    constraintPinO4 = r1O4-r4O4
-    for i in range(np.size(constraintPinO4)):
-    # Equation 10-11
-        constraintVector[i+9] = constraintPinB[i]
-
-    # Equation 12 ===> Driving constraint
-    constraintVector[11] = qi[5] - theta2Initial - omega2*timeNow 
 
     return constraintVector
 
-def jacobianMatrix(qi, u_bar_2O2, u_bar_2A, u_bar_3A, u_bar_3B, 
-                    u_bar_4B, u_bar_1O4, u_bar_4O4):
+def jacobianMatrix(qi, constraintEq, u_bar_2A, u_bar_2B, u_bar_3B):
     n = np.size(qi)
-    jacobianMatrixCq = np.zeros((n,n), dtype = float)
+    nc = np.size(constraintEq)
+    jacobianMatrixCq = np.zeros((nc,n), dtype = float)
     identity3x3 = np.identity(3, dtype = float)
     identity2x2 = np.identity(2, dtype = float)
 
     # row 1-3 --> Ground constraint
     jacobianMatrixCq[0:3,0:3] = identity3x3
 
-    # row 4-5 (r1O2 = r2O2)
-    Cq45 = np.matmul(ATransformMatrixTHETA(float(qi[5])), u_bar_2O2)
+    # row 4-5
+    Cq45 = np.matmul(ATransformMatrixTHETA(float(qi[5])), u_bar_2A)
     jacobianMatrixCq[3:5,3:5] = identity2x2
     jacobianMatrixCq[3:5,5:6] = Cq45
 
     # row 6-7 (r2A = r3A)
-    Cq67_link2 = np.matmul(ATransformMatrixTHETA(float(qi[5])), u_bar_2A)
-    Cq67_link3 = np.matmul(ATransformMatrixTHETA(float(qi[8])), u_bar_3A)
+    Cq67_link2 = np.matmul(ATransformMatrixTHETA(float(qi[5])), u_bar_2B)
+    Cq67_link3 = np.matmul(ATransformMatrixTHETA(float(qi[8])), u_bar_3B)
     jacobianMatrixCq[5:7,3:5] = identity2x2
     jacobianMatrixCq[5:7,5:6] = Cq67_link2
     jacobianMatrixCq[5:7,6:8] = -identity2x2
     jacobianMatrixCq[5:7,8:9] = -Cq67_link3
 
-    # row 8-9 (r3B = r4B)
-    Cq89_link3 = np.matmul(ATransformMatrixTHETA(float(qi[8])), u_bar_3B)
-    Cq89_link4 = np.matmul(ATransformMatrixTHETA(float(qi[11])), u_bar_4B)
-    jacobianMatrixCq[7:9,6:8] = identity2x2
-    jacobianMatrixCq[7:9,8:9] = Cq89_link3
-    jacobianMatrixCq[7:9,9:11] = -identity2x2
-    jacobianMatrixCq[7:9,11:12] = -Cq89_link4
-
-    # row 10-11 (r1O4 = r4O4)
-    Cq1011_link1 = np.matmul(ATransformMatrixTHETA(float(qi[2])), u_bar_1O4)
-    Cq1011_link4 = np.matmul(ATransformMatrixTHETA(float(qi[11])), u_bar_4O4)
-    jacobianMatrixCq[9:11,0:2] = identity2x2
-    jacobianMatrixCq[9:11,2:3] = Cq1011_link1
-    jacobianMatrixCq[9:11,9:11] = -identity2x2
-    jacobianMatrixCq[9:11,11:12] = -Cq1011_link4
-
-    # row 12
-    jacobianMatrixCq[11][5] = 1
-
     return jacobianMatrixCq
+
+def jacobianMatrix_dep(q_dep, constraintEq):
+    n = np.size(q_dep)
+    nc = np.size(constraintEq)
+    jacobianCq_dep = np.zeros((nc,n), dtype = float)
+    identity2x2 = np.identity(2, dtype = float)
+    # row 4-5
+    jacobianCq_dep[3:5,0:2] = identity2x2
+    jacobianCq_dep[5:7,0:2] = identity2x2
+    jacobianCq_dep[5:7,2:4] = -identity2x2
+
+    return jacobianCq_dep
+
 
 def constrEqDot(constraintVectorVel, omega):
 
@@ -164,6 +137,19 @@ def accelerationAnalysis(jacobianMatrix, qiDotDot, qiDot, qi,
     qiDotDot= np.dot(inverse_jacobian, Qd)
 
     return qiDotDot
+
+def QdCalc1Joint(qi, qiDot, u_bar_iP, i):
+    id = 3*(i-1)+2
+    Qd = np.square(float(qiDot[id]))*np.dot(ATransformMatrix(float(qi[id])), u_bar_iP)
+    return Qd 
+
+def QdCalc2Joint(qi, qiDot, u_bar_iP, u_bar_jP, i, j): 
+    id = 3*(i-1)+2
+    jd = 3*(j-1)+2
+    Qda = np.square(float(qiDot[id]))*np.dot(ATransformMatrix(float(qi[id])), u_bar_iP)
+    Qdb = np.square(float(qiDot[jd]))*np.dot(ATransformMatrix(float(qi[jd])), u_bar_jP)
+    Qd = Qda-Qdb
+    return Qd
 
 def eulerMethod(initialState, time, stepSize, systemFunction):
     # initialState = y1 and y2 (e.g. position and velocity)
@@ -237,3 +223,27 @@ def rungeKutta4 (y, time, systemFunction, stepSize):
             stateDotDot [currentTime][dof] = RKFunct[dof+numberOfDOF]
        
     return state, stateDot, stateDotDot
+
+def revolutJoint (riP, riJ):
+    constraintPin = riP-riJ
+    argmin
+    return constraintPin
+
+def inertiaRod (mass, length):
+    Ic = 1/12*mass*length**2
+    return Ic
+
+def massMatrix(massVect):
+    n = np.size(massVect)
+    massMat = np.dot(np.identity(n), massVect)
+    return massMat
+
+def link2index(link, string):
+    if string == "x":
+        index = 3*(link-1)
+    elif string == "y":
+        index = 3*(link-1)+1
+    elif string == "theta":
+        index = 3*(link-1)+2
+        
+    return index

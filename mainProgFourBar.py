@@ -63,14 +63,14 @@ u_bar_4O4 = np.array([[link4_O4B/2], [0]], dtype = float)
 qi = np.array([np.zeros(12)], dtype = float).T #position
 
 # ROUGH ESTIMATES
-qi[11] =  -np.pi/2              # theta4
-qi[10] =  link4_O4B/2           # Ry4
-qi[9]  =  link1_O2O4            # Rx4
-qi[8]  =  np.pi/20*3            # theta3
-qi[7]  =  link4_O4B             # Ry3
-qi[6]  =  link3_AB/2            # Rx3
-qi[5]  =  theta2Initial         # theta2
-qi[4]  =  link2_O2A/2           # Ry2
+qi[11] =  -np.pi/2                                   # theta4
+qi[10] =  link4_O4B/2                                # Ry4
+qi[9]  =  link1_O2O4                                 # Rx4
+qi[8]  =  np.pi/20*3                                 # theta3
+qi[7]  =  link4_O4B                                  # Ry3
+qi[6]  =  link3_AB/2                                 # Rx3
+qi[5]  =  theta2Initial                              # theta2
+qi[4]  =  link2_O2A/2                                # Ry2
 qi[3]  =  -link2_O2A/2*np.cos(theta2Initial-np.pi/2) #Rx2
 
 qiDot = np.array([np.zeros(12)], dtype = float).T # velocity
@@ -83,17 +83,17 @@ epsilon = 0.00000000000000001
 timeNow = timeStart
 
 for timeID in range(np.size(simulTime)):
-    max_iteration = 100
+    max_iteration = 50
     count = 0
     delta_qi_norm = 1
 
     # FOR EVERY TIME STEPP!!
     while delta_qi_norm > epsilon:
         # Calculate GLOBAL LOCATION of Point of Interests
-        r1O2, r2O2 = fc.calcGlobalCoor(qi, u_bar_1O2, u_bar_2O2, 0, 3)
-        r2A, r3A = fc.calcGlobalCoor(qi, u_bar_2A, u_bar_3A, 3, 6)
-        r3B, r4B = fc.calcGlobalCoor(qi, u_bar_3B, u_bar_4B, 6, 9)
-        r1O4, r4O4 = fc.calcGlobalCoor(qi, u_bar_1O4, u_bar_4O4, 0, 9)                               
+        r1O2, r2O2  = fc.calcGlobalCoor(qi, u_bar_1O2, u_bar_2O2, 1, 2)
+        r2A, r3A    = fc.calcGlobalCoor(qi, u_bar_2A , u_bar_3A , 2, 3)
+        r3B, r4B    = fc.calcGlobalCoor(qi, u_bar_3B , u_bar_4B , 3, 4)
+        r1O4, r4O4  = fc.calcGlobalCoor(qi, u_bar_1O4, u_bar_4O4, 1, 4)                               
         
         # 4. CONSTRAINT EQUATION C
         constraintVector = fc.constraintEquation(constraintVector, qi, r1O2, r2O2, 
@@ -124,17 +124,13 @@ for timeID in range(np.size(simulTime)):
             break
 
     # Trajectory point A, B, C
-    R3 = np.array([qi[6], qi[7]], dtype = float).T
-    R4 = np.array([qi[9], qi[10]], dtype = float).T
-    r3A = R3 + np.matmul(ATrans(float(qi[8])), u_bar_3A).T
-    r3B = R3 + np.matmul(ATrans(float(qi[8])), u_bar_3B).T
-    r3C = R3 + np.matmul(ATrans(float(qi[8])), u_bar_3C).T
-    r4B = R4 + np.matmul(ATrans(float(qi[11])), u_bar_4B).T
+    r3A, r3B = fc.calcGlobalCoor(qi, u_bar_3A, u_bar_3B, 3, 3)
+    r3C, r4O4 = fc.calcGlobalCoor(qi, u_bar_3C, u_bar_4O4, 3, 4)
 
     #
-    trajPointA[timeID] = r3A
-    trajPointB[timeID] = r3B
-    trajPointC[timeID] = r3C
+    trajPointA[timeID] = r3A.T
+    trajPointB[timeID] = r3B.T
+    trajPointC[timeID] = r3C.T
 
     # Angular velocity and acceleration Link 3
     omega3[timeID] = qiDot[8] #qi[6]#
@@ -156,7 +152,7 @@ print("Constraint Vector = ")
 print(constraintVector_C)
 print(" ")
 print("sanity check distance point B and R4")
-print((r3B-R4)) # harus 25 cm (and it is!!!)
+#print((r3B-R4)) # harus 25 cm (and it is!!!)
 
 plt.figure(1)
 plt.plot(trajPointA[:,0:1], trajPointA[:,1:2])
@@ -164,7 +160,7 @@ plt.title('Trajectory Point A')
 plt.ylabel('Position y [cm]')
 plt.xlabel('Position X [cm]')
 plt.grid(True)
-plt.show()
+
 
 plt.figure(2)
 plt.plot(trajPointB[:,0:1], trajPointB[:,1:2])
@@ -172,7 +168,7 @@ plt.title('Trajectory Point B')
 plt.ylabel('Position y [cm]')
 plt.xlabel('Position X [cm]')
 plt.grid(True)
-plt.show()
+
 
 plt.figure(3)
 plt.plot(trajPointC[:,0:1], trajPointC[:,1:2])
@@ -180,7 +176,6 @@ plt.title('Trajectory Point C')
 plt.ylabel('Position y [cm]')
 plt.xlabel('Position X [cm]')
 plt.grid(True)
-plt.show()
 
 plt.figure(4)
 plt.plot(simulTime, omega3)
@@ -188,7 +183,7 @@ plt.title('LINK 3 ANGULAR Velocity')
 plt.ylabel('Omega3 [rad/s^2]')
 plt.xlabel('time [s]')
 plt.grid(True)
-plt.show()
+
 
 plt.figure(5)
 plt.plot(simulTime, alpha3)
@@ -196,7 +191,7 @@ plt.title('LINK 3 ANGULAR ACCELERATION')
 plt.ylabel('Alpha3 [rad/s^2]')
 plt.xlabel('time [s]')
 plt.grid(True)
-plt.show()
+
 
 plt.figure(6)
 plt.plot(simulTime, omega4)
@@ -204,7 +199,7 @@ plt.title('LINK 4 ANGULAR Velocity')
 plt.ylabel('Omega4 [rad/s^2]')
 plt.xlabel('time [s]')
 plt.grid(True)
-plt.show()
+
 
 plt.figure(7)
 plt.plot(simulTime, alpha4)

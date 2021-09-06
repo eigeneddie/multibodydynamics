@@ -2,19 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # System Parameters
-x_init = 0.1
+x_init = 0
 xDot_init = 0
 
-mass = 2
-damp = 2
+mass = 5
+damp = 10
 spring = 50
 
 omega = 2
-forceMagnit = 10
+forceMagnit = 1
 
 timeStart = 0
 timeStop = 10
-stepTime = 0.01
+stepTime = 0.001
 time = np.arange(timeStart, timeStop, stepTime, dtype = float)
 
 # Initial Condition
@@ -31,19 +31,20 @@ positionRK = np.zeros(totalData, dtype = float)
 velocityRK = np.zeros(totalData, dtype = float)
 accelerationRK = np.zeros(totalData, dtype = float)
 
-
 #Euler Method
+systemFunction = lambda t, y: (forceMagnit*np.sin(omega*t)-damp*float(y[1])-spring*float(y[0]))/mass
+#
 for i in range(totalData):
-    forceTotal = forceMagnit*np.sin(omega*time[i])-damp*float(y[1])-spring*float(y[0])
-    y = y + stepTime*np.array([y[1], [forceTotal/mass]], dtype = float)
+    eulerMeth = systemFunction(time[i], y)
+    y = y + stepTime*np.array([y[1], [eulerMeth]], dtype = float)
 
     position[i] = (y[0])
     velocity[i] = (y[1])
-    acceleration[i] = forceTotal/mass
+    acceleration[i] = eulerMeth
 
 
 #Runge Kutta 4-5
-systemFunction = lambda t, y: (forceMagnit*np.sin(omega*t)-damp*float(y[1])-spring*float(y[0]))/mass
+#systemFunction = lambda t, y: (forceMagnit*np.sin(omega*t)-damp*float(y[1])-spring*float(y[0]))/mass
 y = np.array([[x_init], [xDot_init]], dtype = float)
 
 for i in range(totalData):
@@ -77,7 +78,7 @@ for i in range(totalData):
 plt.figure(1)
 plt.plot(time, position)
 plt.plot(time, positionRK)
-title = "position plot [step time = %1.3f s]" % stepTime
+title = "position plot [step time = %1.6f s]" % stepTime
 plt.title(title)
 plt.ylabel('displacement [m]')
 plt.xlabel('time [s]')
@@ -88,7 +89,7 @@ plt.legend(["euler", "RK"])
 plt.figure(2)
 plt.plot(time, velocity)
 plt.plot(time, velocityRK)
-title = "velocity plot [step time = %1.3f s]" % stepTime
+title = "velocity plot [step time = %1.6f s]" % stepTime
 plt.title(title)
 plt.ylabel('velocity [m/s]')
 plt.xlabel('time [s]')
@@ -99,7 +100,7 @@ plt.legend(["euler", "RK"])
 plt.figure(3)
 plt.plot(time, acceleration)
 plt.plot(time, accelerationRK)
-title = "Accleration plot [step time = %1.3f s]" % stepTime
+title = "Accleration plot [step time = %1.6f s]" % stepTime
 plt.title(title)
 plt.ylabel('Acceleration [m/s/s]')
 plt.xlabel('time [s]')
